@@ -16,6 +16,27 @@ if (SELFTEST) {
 const WEBVIEW_PRELOAD = path.join(__dirname, 'webview-preload.js');
 let mainWindow = null;
 
+// ---------- invite links: watchparty://join/<room code> ----------
+const linkIn = (list) => (list || []).find((x) => typeof x === 'string' && /^watchparty:\/\//i.test(x)) || null;
+let pendingJoin = linkIn(argv);
+function sendJoin() {
+  if (pendingJoin && mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.send('wp-join', pendingJoin);
+    pendingJoin = null;
+  }
+}
+if (app.isPackaged && !SELFTEST && !SMOKE) {
+  if (!app.requestSingleInstanceLock()) app.quit();
+  else {
+    app.on('second-instance', (_e, argv2) => {
+      const l = linkIn(argv2);
+      if (l) pendingJoin = l;
+      if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); }
+      sendJoin();
+    });
+  }
+}
+
 ipcMain.on('wp-info', (e) => {
   e.returnValue = { version: app.getVersion(), packaged: app.isPackaged, webviewPreload: pathToFileURL(WEBVIEW_PRELOAD).href };
 });
@@ -131,6 +152,8 @@ app.whenReady().then(async () => {
   }
 
   mainWindow = createWindow();
+  mainWindow.webContents.on('did-finish-load', () => setTimeout(sendJoin, 300));
+  if (app.isPackaged) { try { app.setAsDefaultProtocolClient('watchparty'); } catch {} }
   setupUpdates();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow(); });
 });

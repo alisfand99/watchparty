@@ -104,7 +104,7 @@ exports.run = async ({ app, createWindow, log }) => {
     await ev(A, `document.getElementById('video').pause()`);
 
     // ---- shared browser (real webview) ----
-    await click(A, 'dockWeb');
+    await ev(A, `document.querySelector('#rail [data-tool="web"]').click()`);
     ok(await until(() => ev(B, `document.getElementById('screen').dataset.mode === 'browser'`)), 'Browser button opens the shared browser for both');
     ok(await ev(A, `!!document.querySelector('#bHost webview')`) && await ev(B, `!!document.querySelector('#bHost webview')`), 'both use a real webview');
     await ev(A, `(() => { const b = document.getElementById('bUrl'); b.value = ${JSON.stringify(siteUrl + '/')}; document.getElementById('bGo').click(); })()`);
@@ -209,12 +209,12 @@ exports.run = async ({ app, createWindow, log }) => {
     ok(await until(() => ev(B, `document.querySelector('#bHost webview').getURL() === ${JSON.stringify(siteUrl + '/popup')}`), 15000), 'a pop-up window opens in the shared browser for everyone');
 
     // back to the movie
-    await click(A, 'bClose');
+    await ev(A, `WP.setMode('player')`);
     ok(await until(() => ev(B, `document.getElementById('screen').dataset.mode === 'player'`)), 'Back to movie returns both to the film');
     ok(await ev(B, `document.querySelector('#bHost webview').isAudioMuted()`), 'the page goes quiet when you go back to the movie');
 
     // ---- YouTube (needs the internet) ----
-    await click(A, 'dockYT');
+    await ev(A, `document.querySelector('#rail [data-tool="yt"]').click()`);
     ok(await until(() => ev(B, `document.getElementById('screen').dataset.mode === 'browser' && WP.view.url.startsWith('https://www.youtube.com')`), 15000), 'YouTube button opens YouTube for both');
     const ytLoaded = await until(async () => /YouTube/i.test(await ev(A, `document.querySelector('#bHost webview').getTitle()`)) && /YouTube/i.test(await ev(B, `document.querySelector('#bHost webview').getTitle()`)), 40000, 500);
     ok(ytLoaded, 'YouTube really loads in both windows (title: ' + (await ev(A, `document.querySelector('#bHost webview').getTitle()`)) + ')');
@@ -243,7 +243,7 @@ exports.run = async ({ app, createWindow, log }) => {
       await wvEval(A, `document.exitFullscreen()`);
       ok(await until(() => !A.isFullScreen(), 8000), 'YouTube leaves fullscreen');
     }
-    await click(A, 'bClose');
+    await ev(A, `WP.setMode('player')`);
     await until(() => ev(B, `document.getElementById('screen').dataset.mode === 'player'`));
 
     // ---- update banner wiring ----
