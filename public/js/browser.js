@@ -7,7 +7,7 @@
   const host = $('bHost');
   const urlBox = $('bUrl');
   const isEl = !!(WP.env && WP.env.electron && WP.env.webviewPreload);
-  const view = (WP.view = { mode: 'player', url: '', ver: 0, scroll: null, vid: null });
+  const view = (WP.view = { mode: 'lobby', url: '', ver: 0, scroll: null, vid: null });
   let wv = null, ready = false, quiet = 0, cmdQueue = [];
   const dbg = { sent: {}, dropped: {}, got: {} };
   const hist = []; let hi = -1; // history for the iframe fallback
@@ -140,13 +140,11 @@
     view.mode = mode;
     screen.dataset.mode = mode;
     pane.classList.toggle('hidden', mode !== 'browser');
-    $('dockMovie').classList.toggle('active', mode === 'player');
-    $('dockYT').classList.toggle('active', mode === 'browser' && /youtube\.com|youtu\.be/.test(view.url));
-    $('dockWeb').classList.toggle('active', mode === 'browser' && !/youtube\.com|youtu\.be/.test(view.url));
     if (mode === 'browser') { WP.pauseQuiet(); ensureView(); if (view.url) load(view.url); }
     else if (wv) { // the page keeps its place but goes quiet
       if (isEl) { cmd({ k: 'vid', a: 'pause', t: -1 }); try { wv.setAudioMuted(true); } catch {} } else wv.src = 'about:blank';
     }
+    if (mode === 'lobby') WP.pauseQuiet();
     if (mode === 'browser' && isEl && wv) { try { wv.setAudioMuted(false); } catch {} }
     WP.emit('view-change', mode);
     if (!fromRemote) view.ver = Date.now();
@@ -167,12 +165,7 @@
     } else go(url);
     refreshDock();
   }
-  function refreshDock() {
-    const yt = /youtube\.com|youtu\.be/.test(view.url);
-    $('dockMovie').classList.toggle('active', view.mode === 'player');
-    $('dockYT').classList.toggle('active', view.mode === 'browser' && yt);
-    $('dockWeb').classList.toggle('active', view.mode === 'browser' && !yt);
-  }
+  function refreshDock() { WP.emit('tool-refresh'); }
   WP.on('view-change', refreshDock);
 
   WP.onMsg('view', (entry, m) => {
@@ -187,7 +180,7 @@
       quiet = Date.now() + 1800;
       if (view.mode !== 'browser') setMode('browser', true); else load(view.url);
       refreshDock();
-    } else setMode('player', true);
+    } else setMode(m.mode === 'lobby' ? 'lobby' : 'player', true);
   });
   WP.onMsg('req-state', (entry) => {
     const vid = view.vid && { ...view.vid, t: view.vid.a === 'play' ? view.vid.t + (Date.now() - view.vid.at) / 1000 : view.vid.t };
@@ -197,13 +190,16 @@
   function persist() { if (WP.rec) { WP.rec.view = { mode: view.mode, url: view.url, ver: view.ver }; WP.save(); } }
   WP.restoreView = () => {
     const v = WP.rec && WP.rec.view;
-    if (v && v.mode === 'browser' && isHttp(v.url || '')) { view.url = v.url; view.ver = v.ver || 0; setMode('browser', true); }
+    if (!v) return;
+    view.ver = v.ver || 0;
+    if (v.mode === 'browser' && isHttp(v.url || '')) { view.url = v.url; setMode('browser', true); }
+    else if (v.mode === 'player') setMode('player', true);
   };
 
   // ---------- controls ----------
   $('bGo').onclick = () => go(urlBox.value);
   urlBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(urlBox.value); e.stopPropagation(); });
-  $('bClose').onclick = () => WP.setMode('player');
+  $('bClose').onclick = () => WP.setMode('lobby');
   $('bReload').onclick = () => { if (!wv) return; if (isEl) { try { wv.reload(); } catch {} } else wv.src = view.url; };
   $('bBack').onclick = () => {
     if (isEl) { try { if (wv.canGoBack()) wv.goBack(); } catch {} }
@@ -213,17 +209,8 @@
     if (isEl) { try { if (wv.canGoForward()) wv.goForward(); } catch {} }
     else if (hi < hist.length - 1) { hi++; view.url = hist[hi]; load(view.url); WP.broadcast({ t: 'nav', url: view.url }); }
   };
-  $('dockMovie').onclick = () => WP.setMode('player');
-  $('dockYT').onclick = () => open('https://www.youtube.com/');
-  $('dockWeb').onclick = () => { if (view.mode === 'browser' && !/youtube\.com|youtu\.be/.test(view.url)) return; open(HOME); };
   if (WP.env && WP.env.onOpenUrl) WP.env.onOpenUrl((u) => { if (isHttp(u)) open(u); });
 
-  // The YouTube button uses the site's own icon, loaded when the app starts.
-  const img = $('ytImg');
-  img.hidden = true;
-  img.onload = () => { img.hidden = false; $('ytTxt').hidden = true; };
-  img.onerror = () => { img.hidden = true; $('ytTxt').hidden = false; };
-  img.src = 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64';
 
-  WP.browser = { open, go, view, debug: () => ({ ready, queued: cmdQueue.length, dbg }), isElectron: isEl, get el() { return wv; } };
+  WP.browser = { open, go, view, HOME, debug: () => ({ ready, queued: cmdQueue.length, dbg }), isElectron: isEl, get el() { return wv; } };
 })();

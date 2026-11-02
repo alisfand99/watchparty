@@ -103,6 +103,7 @@
     if (m.action === 'source') {
       state.src = m.src; state.playing = false; state.time = 0; state.updatedAt = Date.now();
       setSource(m.src);
+      if (WP.setMode) WP.setMode('player', false);
       WP.say('Movie changed.', 'sys');
     } else {
       state.time = m.time; state.updatedAt = Date.now();
@@ -175,7 +176,7 @@
     $('empty').style.display = 'none';
     status(f.name);
     clearSubs();
-    if (WP.setMode) WP.setMode('player', false);
+    if (WP.setMode) WP.setMode('player');
     if (sameAsRoom) applyState(snapshot()); // join the movie the room is already watching
     else { setTimeout(() => (applyingRemote = false), 300); localEvent('source', currentSrc); }
     WP.save();
@@ -183,11 +184,22 @@
   $('urlBtn').onclick = () => {
     const url = $('url').value.trim();
     if (!/^https?:\/\//i.test(url)) { status('Invalid link.'); return; }
-    if (WP.setMode) WP.setMode('player', false);
+    if (WP.setMode) WP.setMode('player');
+    $('openMenu').classList.add('hidden');
     setSource({ type: 'url', url });
     localEvent('source', currentSrc);
   };
-  $('resync').onclick = () => { forceUntil = Date.now() + 2500; WP.broadcast({ t: 'req-state' }); };
+  $('resync').onclick = () => { $('openMenu').classList.add('hidden'); forceUntil = Date.now() + 2500; WP.broadcast({ t: 'req-state' }); };
+
+  // movie menu ("More") and the empty-state buttons
+  const openMenu = $('openMenu');
+  $('openBtn').onclick = (e) => { e.stopPropagation(); openMenu.classList.toggle('hidden'); };
+  $('pickFile').onclick = () => $('file').click();
+  $('pickLink').onclick = (e) => { e.stopPropagation(); openMenu.classList.remove('hidden'); $('url').focus(); };
+  $('openFile').onclick = () => { openMenu.classList.add('hidden'); $('file').click(); };
+  $('openSub').onclick = () => { openMenu.classList.add('hidden'); $('subFile').click(); };
+  $('url').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('urlBtn').click(); e.stopPropagation(); });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#openMenu')) openMenu.classList.add('hidden'); });
 
   // ---------- subtitles (local only) ----------
   let subUrl = null;
@@ -300,7 +312,7 @@
   function wake() {
     screen.classList.remove('idle');
     clearTimeout(idleT);
-    idleT = setTimeout(() => { if (!video.paused && !screen.matches(':has(.controls:hover, .drawbar:hover, .popover:not(.hidden))')) screen.classList.add('idle'); }, 2800);
+    idleT = setTimeout(() => { if (!video.paused && !screen.matches(':has(.controls:hover, .drawbar:hover, .rail:hover, .popover:not(.hidden))')) screen.classList.add('idle'); }, 2800);
   }
   screen.addEventListener('mousemove', wake);
   screen.addEventListener('pointerdown', wake);
@@ -316,7 +328,10 @@
     const k = e.key;
     if (t && t.tagName === 'BUTTON' && (k === ' ' || k === 'Enter')) return; // let the focused button handle it
     let used = true;
-    if (k === ' ' || k === 'k' || k === 'K') toggle();
+    const inPlayer = screen.dataset.mode === 'player';
+    if (k === 'f' || k === 'F') fs();
+    else if (!inPlayer) used = false;
+    else if (k === ' ' || k === 'k' || k === 'K') toggle();
     else if (k === 'j' || k === 'J') skip(-10);
     else if (k === 'l' || k === 'L') skip(10);
     else if (k === 'ArrowLeft') skip(-5);
@@ -324,7 +339,6 @@
     else if (k === 'ArrowUp') { video.muted = false; video.volume = Math.min(1, video.volume + 0.1); }
     else if (k === 'ArrowDown') video.volume = Math.max(0, video.volume - 0.1);
     else if (k === 'm' || k === 'M') video.muted = !video.muted;
-    else if (k === 'f' || k === 'F') fs();
     else if (k === '>' || k === '.') { const i = RATES.indexOf(video.playbackRate); if (i < RATES.length - 1) setRate(RATES[i + 1]); }
     else if (k === '<' || k === ',') { const i = RATES.indexOf(video.playbackRate); if (i > 0) setRate(RATES[i - 1]); }
     else used = false;

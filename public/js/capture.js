@@ -52,14 +52,14 @@
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x + 7 * k, y + 10.5 * k, 200 * k);
   }
-  const tileEls = () => [...document.querySelectorAll('#tileLayer .tile:not(.off)')];
+  const tileEls = () => [...document.querySelectorAll('#tileLayer .tile:not(.off):not(.invite)')];
   const nameOf = (el) => (el.querySelector('.label') || {}).textContent || '';
 
   function paint(ctx, W, H, r, k, o) {
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = screen.dataset.mode === 'lobby' ? '#141824' : '#000';
     ctx.fillRect(0, 0, W, H);
     if (o.only) {
-      const els = tileEls().concat([...document.querySelectorAll('#tileLayer .tile.off')]);
+      const els = tileEls().concat([...document.querySelectorAll('#tileLayer .tile.off:not(.invite)')]);
       const n = Math.max(1, els.length), cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols);
       const g = 10 * k, cw = (W - g * (cols + 1)) / cols, ch = (H - g * (rows + 1)) / rows;
       els.forEach((el, i) => {
@@ -75,11 +75,11 @@
       ctx.fillStyle = '#fff';
       ctx.fillRect(x, y, hb.width * k, hb.height * k);
       if (o.base) ctx.drawImage(o.base, x, y, hb.width * k, hb.height * k);
-    } else if (video.videoWidth) {
+    } else if (video.videoWidth && screen.dataset.mode !== 'lobby') {
       const s = Math.min(W / video.videoWidth, H / video.videoHeight), w = video.videoWidth * s, h = video.videoHeight * s;
       ctx.drawImage(video, (W - w) / 2, (H - h) / 2, w, h);
     }
-    if (draw.width) ctx.drawImage(draw, 0, 0, W, H);
+    if (draw.width && screen.dataset.mode !== 'lobby') ctx.drawImage(draw, 0, 0, W, H);
     if (o.faces && !$('tileLayer').classList.contains('hidden')) {
       for (const el of tileEls()) {
         const b = el.getBoundingClientRect();
@@ -197,6 +197,7 @@
     tick();
     mr.start(1000);
     $('recBtn').classList.add('on');
+    $('snapBtn').classList.add('rec');
     $('recTime').classList.remove('hidden');
     WP.act('rec', 'started recording', mt);
     WP.broadcast({ t: 'recnote', on: true });
@@ -207,6 +208,7 @@
     rec = null;
     clearInterval(cur.timer);
     $('recBtn').classList.remove('on');
+    $('snapBtn').classList.remove('rec');
     $('recTime').classList.add('hidden');
     WP.broadcast({ t: 'recnote', on: false });
     return new Promise((res) => {
@@ -237,6 +239,8 @@
     };
   });
   $('recBtn').onclick = () => { if (rec) stopRec(); else startRec(); };
+  $('recTime').onclick = () => stopRec();
+  menu.addEventListener('click', (e) => { if (e.target.closest('button')) menu.classList.add('hidden'); });
   WP.on('leave', () => { if (rec) stopRec(); });
 
   WP.capture = { compose, snap, reactionSnap, startRec, stopRec, get recording() { return !!rec; } };

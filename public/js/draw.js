@@ -82,7 +82,7 @@
     }
     ctx.globalAlpha = 1;
     for (const [id, l] of lasers) {
-      if (Date.now() - l.t > 1500) { lasers.delete(id); continue; }
+      if (Date.now() - l.t > 1500) { lasers.delete(id); dirty = true; continue; }
       const px = r.x + l.x * r.w, py = r.y + l.y * r.h;
       l.trail = l.trail.filter((q) => Date.now() - q.t < 350);
       for (const q of l.trail) {
@@ -91,11 +91,12 @@
         ctx.beginPath(); ctx.arc(r.x + q.x * r.w, r.y + q.y * r.h, 5, 0, 7); ctx.fill();
       }
       ctx.globalAlpha = 1;
-      const g = ctx.createRadialGradient(px, py, 0, px, py, 16);
-      g.addColorStop(0, l.c); g.addColorStop(0.35, l.c); g.addColorStop(1, 'rgba(255,255,255,0)');
+      const R = 24 + 3 * Math.sin(Date.now() / 110);
+      const g = ctx.createRadialGradient(px, py, 0, px, py, R);
+      g.addColorStop(0, '#fff'); g.addColorStop(0.18, l.c); g.addColorStop(0.5, l.c + '99'); g.addColorStop(1, l.c + '00');
       ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(px, py, 16, 0, 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 3.5, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, R, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px, py, 4, 0, 7); ctx.fill();
       if (l.name) {
         ctx.font = '12px system-ui,sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         const tw = ctx.measureText(l.name).width + 10;
@@ -183,12 +184,36 @@
     }
     if (hit.length) eraseIds(hit, true);
   }
-  let lastLaser = 0;
-  function laser(p, on) {
+  // Pointer: hold the mouse down to show a glowing dot to everyone, let go and it disappears.
+  let pointing = false, lastP = [0, 0], beatT = 0;
+  function sendLaser(on) {
+    WP.broadcast(on ? { t: 'laser', x: r4(lastP[0]), y: r4(lastP[1]), c: color, on: 1, v: viewKey() } : { t: 'laser', on: 0 });
+  }
+  function pointAt(p) {
+    lastP = p;
+    const l = lasers.get('me') || { trail: [] };
+    l.trail.push({ x: l.x ?? p[0], y: l.y ?? p[1], t: Date.now() });
+    Object.assign(l, { x: p[0], y: p[1], c: color, name: '', t: Date.now() });
+    lasers.set('me', l);
+    dirty = true;
     const now = Date.now();
-    if (on && now - lastLaser < 30) return;
-    lastLaser = now;
-    WP.broadcast({ t: 'laser', x: r4(p[0]), y: r4(p[1]), c: color, on: on ? 1 : 0, v: viewKey() });
+    if (now - (pointAt.last || 0) >= 30) { pointAt.last = now; sendLaser(true); }
+  }
+  function pointStart(p) {
+    pointing = true;
+    cv.style.cursor = 'none';
+    pointAt(p);
+    clearInterval(beatT);
+    beatT = setInterval(() => { if (pointing) { lasers.get('me').t = Date.now(); sendLaser(true); } }, 400);
+  }
+  function pointStop() {
+    if (!pointing) return;
+    pointing = false;
+    clearInterval(beatT);
+    lasers.delete('me');
+    dirty = true;
+    cv.style.cursor = 'crosshair';
+    sendLaser(false);
   }
 
   cv.addEventListener('pointerdown', (e) => {
@@ -198,7 +223,7 @@
     if (tool === 'pen') startStroke(p);
     else if (tool === 'eraser') { erasing = true; eraseAt(p); }
     else if (tool === 'emoji') stamp(p);
-    else if (tool === 'laser') laser(p, true);
+    else if (tool === 'laser') pointStart(p);
   });
   cv.addEventListener('pointermove', (e) => {
     if (tool === 'none') return;
@@ -207,13 +232,13 @@
       const p = norm(ev);
       if (tool === 'pen' && cur) extend(p);
       else if (tool === 'eraser' && erasing) eraseAt(p);
-      else if (tool === 'laser') laser(p, true);
+      else if (tool === 'laser' && pointing) pointAt(p);
     }
   });
-  const up = () => { if (cur) endStroke(); erasing = false; };
+  const up = () => { if (cur) endStroke(); erasing = false; pointStop(); };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
-  cv.addEventListener('pointerleave', () => { if (tool === 'laser') WP.broadcast({ t: 'laser', on: 0 }); });
+  window.addEventListener('blur', up);
 
   // ---------- remote ----------
   WP.onMsg('draw', (entry, m) => {
@@ -231,7 +256,7 @@
   WP.onMsg('draw-erase', (entry, m) => eraseIds(m.ids || [], false));
   WP.onMsg('draw-clear', (entry, m) => clearAll(m.ts, false));
   WP.onMsg('laser', (entry, m) => {
-    if (!m.on) { lasers.delete(entry.id); return; }
+    if (!m.on) { lasers.delete(entry.id); dirty = true; return; }
     if ((m.v || 'p') !== viewKey()) return;
     const l = lasers.get(entry.id) || { trail: [] };
     l.trail.push({ x: l.x ?? m.x, y: l.y ?? m.y, t: Date.now() });
@@ -272,12 +297,14 @@
   const bar = $('drawbar');
   function setTool(t) {
     if (cur) endStroke();
+    if (tool === 'laser' && t !== 'laser') pointStop();
     tool = t;
+    if ($('ptrBtn')) $('ptrBtn').classList.toggle('on', t === 'laser');
     bar.querySelectorAll('[data-tool]').forEach((b) => b.classList.toggle('active', b.dataset.tool === t));
     $('emojiRow').classList.toggle('hidden', t !== 'emoji');
     cv.classList.toggle('on', t !== 'none');
-    cv.style.cursor = { pen: 'crosshair', eraser: 'cell', emoji: 'copy', laser: 'none', none: '' }[t];
-    $('drawBtn').classList.toggle('on', !bar.classList.contains('hidden'));
+    cv.style.cursor = { pen: 'crosshair', eraser: 'cell', emoji: 'copy', laser: 'crosshair', none: '' }[t];
+    $('drawBtn').classList.toggle('on', !bar.classList.contains('hidden') && t !== 'laser');
   }
   bar.querySelectorAll('[data-tool]').forEach((b) => (b.onclick = () => setTool(b.dataset.tool)));
   COLORS.forEach((c, i) => {
@@ -306,8 +333,16 @@
   $('drawBtn').onclick = () => {
     bar.classList.toggle('hidden');
     if (bar.classList.contains('hidden')) setTool('none');
-    else setTool(tool === 'none' ? 'pen' : tool);
+    else setTool(tool === 'none' || tool === 'laser' ? 'pen' : tool);
   };
+  // Pointer: one click arms it, then hold the mouse on the picture to show a spot to everyone.
+  $('ptrBtn').onclick = () => {
+    if (tool === 'laser') { setTool('none'); return; }
+    bar.classList.add('hidden');
+    setTool('laser');
+    WP.toast('Pointer on: hold the mouse on the picture to show something');
+  };
+  WP.on('view-change', () => { if (tool !== 'none' && WP.view && WP.view.mode === 'lobby') { bar.classList.add('hidden'); setTool('none'); } });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && tool !== 'none') setTool('none');
     if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !$('app').classList.contains('hidden') && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || '')) $('drawBtn').click();

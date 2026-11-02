@@ -84,11 +84,17 @@
     if (m.to && m.to !== myId) return;
     switch (m.t) {
       case 'hello':
+        if (!WP.peers.has(m.from) && WP.peers.size >= WP.MAX_PEOPLE - 1) { pub({ t: 'full', from: myId, to: m.from }); break; }
         ensurePeer(m.from, m.name);
         pub({ t: 'here', from: myId, to: m.from, name: WP.me.name });
         break;
       case 'here': ensurePeer(m.from, m.name); break;
-      case 'offer': await onOffer(m); break;
+      case 'offer':
+        if (!WP.peers.has(m.from) && WP.peers.size >= WP.MAX_PEOPLE - 1) { pub({ t: 'full', from: myId, to: m.from }); break; }
+        await onOffer(m); break;
+      case 'full':
+        if (!WP.peers.size) { WP.emit('room-full'); }
+        break;
       case 'answer': await onAnswer(m); break;
       case 'bye': removePeer(m.from); break;
     }

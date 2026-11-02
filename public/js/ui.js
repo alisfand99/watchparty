@@ -21,9 +21,15 @@
     camera: 'M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-1.8a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z',
     rec: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z',
     gallery: 'M22 16V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2zm-11-4 2.03 2.71L16 11l4 5H8l3-4zM2 6v14a2 2 0 0 0 2 2h14v-2H4V6H2z',
+    pointer: 'M11 2h2v4.07A8 8 0 0 1 17.93 11H22v2h-4.07A8 8 0 0 1 13 17.93V22h-2v-4.07A8 8 0 0 1 6.07 13H2v-2h4.07A8 8 0 0 1 11 6.07V2zm1 6a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    table: 'M3 9h18v3h-2v7h-2v-4H7v4H5v-7H3V9zm3-4h12l1 3H5l1-3z',
+    yt: 'M21.6 7.2a2.5 2.5 0 0 0-1.8-1.8C18.2 5 12 5 12 5s-6.2 0-7.8.4A2.5 2.5 0 0 0 2.4 7.2C2 8.8 2 12 2 12s0 3.2.4 4.8a2.5 2.5 0 0 0 1.8 1.8C5.8 19 12 19 12 19s6.2 0 7.8-.4a2.5 2.5 0 0 0 1.8-1.8c.4-1.6.4-4.8.4-4.8s0-3.2-.4-4.8zM10 15V9l5.2 3L10 15z',
+    book: 'M18 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 4h5v8l-2.5-1.5L6 12V4z',
+    game: 'M21 6H3a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm-10 7H9v2H7v-2H5v-2h2V9h2v2h2v2zm4.5 2a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z',
+    swap: 'M6.99 11 3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z',
     reload: 'M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
   };
-  WP.icon = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n] || ''}"/></svg>`;
+  WP.icon = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="${P[n] || ''}"/></svg>`;
   document.querySelectorAll('[data-icon]').forEach((el) => (el.innerHTML = WP.icon(el.dataset.icon)));
   WP.emit('icons-ready');
 
@@ -155,14 +161,61 @@
   renderRecent();
 
   // ---------- joining ----------
-  $('room').value = new URLSearchParams(location.search).get('room') || '';
+  // Accepts a plain code, an invite link (https://.../#code) or watchparty://join/code.
+  function parseRoom(text) {
+    text = String(text || '').trim();
+    let m = /^watchparty:\/\/join\/(.+)$/i.exec(text);
+    if (m) return decodeURIComponent(m[1].replace(/[/?#].*$/, ''));
+    if (/^https?:\/\//i.test(text)) {
+      try {
+        const u = new URL(text);
+        const h = u.hash.replace(/^#\/?/, '');
+        if (h) return decodeURIComponent(h);
+        const q = u.searchParams.get('room');
+        if (q) return q;
+      } catch {}
+    }
+    return text;
+  }
+  function newCode() {
+    const abc = 'abcdefghjkmnpqrstuvwxyz23456789';
+    const r = crypto.getRandomValues(new Uint8Array(12));
+    const c = [...r].map((x) => abc[x % abc.length]).join('');
+    return c.slice(0, 4) + '-' + c.slice(4, 8) + '-' + c.slice(8);
+  }
+  const fromUrl = new URLSearchParams(location.search).get('room') || parseRoom(location.hash.replace(/^#/, ''));
+  $('room').value = fromUrl || '';
   $('name').value = (() => { try { return localStorage.getItem('wp-name') || ''; } catch { return ''; } })();
+
+  $('newRoom').onclick = () => {
+    if (!$('name').value.trim()) { $('joinErr').textContent = 'Enter your name first.'; $('name').focus(); return; }
+    $('room').value = newCode();
+    $('joinBtn').click();
+  };
+  // an invite opened in the app (watchparty://join/code)
+  if (WP.env && WP.env.onJoin) {
+    WP.env.onJoin((text) => {
+      if (!$('app').classList.contains('hidden')) { WP.say('Someone opened an invite link, but you are already in a room.', 'sys'); return; }
+      $('room').value = parseRoom(text);
+      if ($('name').value.trim()) $('joinBtn').click(); else $('name').focus();
+    });
+  }
+  WP.on('room-full', () => {
+    $('joinErr').textContent = 'This room is full (6 people at most).';
+    WP.stopNet();
+    $('app').classList.add('hidden');
+    $('join').classList.remove('hidden');
+    $('joinBtn').disabled = false;
+    if (WP.localStream) { WP.localStream.getTracks().forEach((t) => t.stop()); WP.localStream = null; }
+    WP.rec = null;
+  });
 
   $('joinBtn').onclick = async () => {
     const name = $('name').value.trim();
-    const room = $('room').value.trim();
+    const room = parseRoom($('room').value);
     $('joinErr').textContent = '';
     if (!name || !room) { $('joinErr').textContent = 'Enter your name and a room code.'; return; }
+    $('room').value = room;
     try { localStorage.setItem('wp-name', name); } catch {}
     WP.me.name = name;
     WP.roomCode = room;
@@ -205,6 +258,11 @@
     WP.restoreMovie();
     WP.restoreView();
   }
+
+  // the chat can be hidden to give the table or the tool more room
+  const setChat = (on) => { $('app').classList.toggle('no-chat', !on); $('chatToggle').classList.toggle('muted-on', !on); try { localStorage.setItem('wp-chat', on ? '1' : '0'); } catch {} requestAnimationFrame(() => window.dispatchEvent(new Event('resize'))); };
+  $('chatToggle').onclick = () => setChat($('app').classList.contains('no-chat'));
+  try { if (localStorage.getItem('wp-chat') === '0') setChat(false); } catch {}
 
   $('leaveBtn').onclick = () => {
     WP.stopNet();

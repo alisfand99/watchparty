@@ -13,6 +13,7 @@
     peers: new Map(), // id -> { id, pc, dc, name, ... }
     rec: null, // the saved record of the current room
     env: window.wpEnv || null,
+    MAX_PEOPLE: 6,
     uid: () => rnd().slice(0, 10),
     on(e, f) { (bus[e] || (bus[e] = [])).push(f); },
     emit(e, ...a) { for (const f of bus[e] || []) { try { f(...a); } catch (err) { console.error(e, err); } } },
