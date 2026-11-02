@@ -1,5 +1,47 @@
 // Runs inside every page of the shared browser. Reports what the person does and replays what others did.
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, webFrame } = require('electron');
+
+// Pages that ask for fullscreen (YouTube and others) would cover our cameras. Instead the page is stretched
+// to the whole shared browser and the app itself goes fullscreen, so the cameras stay on top.
+const FS_HOOK = `(() => {
+  if (window.__wpfs) return; window.__wpfs = 1;
+  let cur = null, saved = null;
+  const de = { setAttribute: (a, b) => document.documentElement && document.documentElement.setAttribute(a, b), removeAttribute: (a) => document.documentElement && document.documentElement.removeAttribute(a) };
+  const ping = () => window.dispatchEvent(new Event('wp-fs-change'));
+  const exit = () => {
+    if (!cur) return Promise.resolve();
+    const el = cur; cur = null;
+    if (saved === null) el.removeAttribute('style'); else el.setAttribute('style', saved);
+    de.removeAttribute('data-wp-fs');
+    (el.isConnected ? el : document).dispatchEvent(new Event('fullscreenchange', { bubbles: true }));
+    ping();
+    return Promise.resolve();
+  };
+  const enter = function () {
+    const el = this;
+    if (cur === el) return Promise.resolve();
+    if (navigator.userActivation && !navigator.userActivation.isActive) return Promise.reject(new TypeError('Fullscreen needs a user action'));
+    if (cur) exit();
+    cur = el; saved = el.getAttribute('style');
+    el.style.cssText = (saved || '') + ';position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;z-index:2147483647!important;background:#000!important;margin:0!important;transform:none!important';
+    de.setAttribute('data-wp-fs', '1');
+    el.dispatchEvent(new Event('fullscreenchange', { bubbles: true }));
+    ping();
+    return Promise.resolve();
+  };
+  const def = (o, k, v) => { try { Object.defineProperty(o, k, { get: v, configurable: true }); } catch {} };
+  for (const k of ['fullscreenElement', 'webkitFullscreenElement', 'webkitCurrentFullScreenElement']) def(Document.prototype, k, () => cur);
+  for (const k of ['fullscreen', 'webkitIsFullScreen']) def(Document.prototype, k, () => !!cur);
+  for (const k of ['fullscreenEnabled', 'webkitFullscreenEnabled']) def(Document.prototype, k, () => true);
+  Element.prototype.requestFullscreen = enter;
+  Element.prototype.webkitRequestFullscreen = enter;
+  Element.prototype.webkitRequestFullScreen = enter;
+  Document.prototype.exitFullscreen = exit;
+  Document.prototype.webkitExitFullscreen = exit;
+  Document.prototype.webkitCancelFullScreen = exit;
+})();`;
+try { webFrame.executeJavaScript(FS_HOOK); } catch {}
+addEventListener('wp-fs-change', () => { try { ipcRenderer.sendToHost('wp', { k: 'fs', on: document.documentElement.hasAttribute('data-wp-fs') }); } catch {} });
 
 let applyUntil = 0; // while replaying something from another person, do not report it back
 const applying = () => Date.now() < applyUntil;
@@ -83,6 +125,7 @@ setInterval(() => { for (const v of document.querySelectorAll('video')) hookVide
 // ----- replaying what other people did -----
 ipcRenderer.on('wp-cmd', (_e, m) => {
   try {
+    if (m.k === 'fs-exit') { try { webFrame.executeJavaScript('document.exitFullscreen && document.exitFullscreen()'); } catch {} return; }
     if (m.k === 'scroll') {
       applyUntil = Date.now() + 450;
       const de = document.documentElement;

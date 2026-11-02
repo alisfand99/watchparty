@@ -20,6 +20,8 @@ ipcMain.on('wp-info', (e) => {
   e.returnValue = { version: app.getVersion(), packaged: app.isPackaged, webviewPreload: pathToFileURL(WEBVIEW_PRELOAD).href };
 });
 
+ipcMain.on('wp-fullscreen', (e, on) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w.setFullScreen(!!on); });
+
 function createWindow(opts = {}) {
   const win = new BrowserWindow({
     width: 1280,
@@ -40,6 +42,9 @@ function createWindow(opts = {}) {
       ...(opts.partition ? { partition: opts.partition } : {}),
     },
   });
+  const tellFs = (on) => { try { win.webContents.send('wp-fs', on); } catch {} };
+  win.on('enter-full-screen', () => tellFs(true));
+  win.on('leave-full-screen', () => tellFs(false));
   win.loadFile(path.join(__dirname, 'public', 'index.html'), opts.query ? { query: opts.query } : undefined);
   return win;
 }
@@ -88,7 +93,7 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
 
   // Camera, microphone and speaker choice for our own page only. The shared browser gets fullscreen and nothing else.
-  const allowed = new Set(['media', 'mediaKeySystem', 'speaker-selection']);
+  const allowed = new Set(['media', 'mediaKeySystem', 'speaker-selection', 'fullscreen']);
   session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
   const web = session.fromPartition('persist:wpbrowser');

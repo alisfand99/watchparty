@@ -11,5 +11,7 @@ contextBridge.exposeInMainWorld('wpEnv', {
   pathFor: (file) => { try { return webUtils.getPathForFile(file) || ''; } catch { return ''; } },
   onOpenUrl: (cb) => ipcRenderer.on('wp-open-url', (_e, url) => cb(url)),
   onUpdate: (cb) => ipcRenderer.on('wp-update', (_e, u) => cb(u)),
+  setFullscreen: (on) => ipcRenderer.send('wp-fullscreen', !!on),
+  onFullscreen: (cb) => ipcRenderer.on('wp-fs', (_e, on) => cb(!!on)),
   installUpdate: () => ipcRenderer.send('wp-update-install'),
 });
