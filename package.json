@@ -1,6 +1,6 @@
 {
   "name": "watchparty",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "Watch movies together in sync, with everyone's camera and microphone",
   "main": "main.js",
   "author": "WatchParty",
@@ -45,7 +45,15 @@
     "publish": [
       {
         "provider": "github",
+        "owner": "alisfand99",
+        "repo": "watchparty",
         "releaseType": "release"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "app-update.yml",
+        "to": "app-update.yml"
       }
     ]
   },

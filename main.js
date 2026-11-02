@@ -78,13 +78,18 @@ function setupUpdates() {
   const tell = (u) => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed()) w.webContents.send('wp-update', u); });
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.on('update-available', (i) => tell({ state: 'downloading', version: i.version }));
+  autoUpdater.on('update-available', (i) => ulog('available ' + i.version) || tell({ state: 'downloading', version: i.version }));
   autoUpdater.on('download-progress', (p) => tell({ state: 'downloading', percent: p.percent }));
-  autoUpdater.on('update-downloaded', (i) => tell({ state: 'ready', version: i.version }));
-  autoUpdater.on('update-not-available', () => tell({ state: 'none' }));
-  autoUpdater.on('error', () => tell({ state: 'error' }));
+  autoUpdater.on('update-downloaded', (i) => { ulog('downloaded ' + i.version); tell({ state: 'ready', version: i.version }); });
+  autoUpdater.on('update-not-available', () => { ulog('none'); tell({ state: 'none', manual }); manual = false; });
+  const ulog = (t) => { try { fs.appendFileSync(path.join(app.getPath('userData'), 'updater.log'), new Date().toISOString() + ' ' + t + '\n'); } catch {} };
+  ulog('start v' + app.getVersion());
+  let manual = false;
+  autoUpdater.on('checking-for-update', () => ulog('checking'));
+  autoUpdater.on('error', (e) => { ulog('error ' + (e && e.message)); tell({ state: 'error', message: String((e && e.message) || e).split('\n')[0].slice(0, 160) }); });
   ipcMain.on('wp-update-install', () => { try { autoUpdater.quitAndInstall(); } catch {} });
-  const check = () => { try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} };
+  const check = () => { try { autoUpdater.checkForUpdates().catch((e) => ulog('check failed ' + (e && e.message))); } catch (e) { ulog('check threw ' + e.message); } };
+  ipcMain.on('wp-update-check', () => { manual = true; check(); });
   setTimeout(check, 4000);
   setInterval(check, 30 * 60 * 1000);
 }
@@ -112,7 +117,9 @@ app.whenReady().then(async () => {
       try { require('electron-updater'); updater = true; } catch (e) { updater = String(e.message); }
       let webview = false;
       try { webview = fs.existsSync(WEBVIEW_PRELOAD); } catch {}
-      fs.writeFileSync(SMOKE, JSON.stringify({ ok: true, info, updater, webviewPreloadExists: webview, electron: process.versions.electron }, null, 2));
+      let updateYml = false;
+      try { updateYml = fs.existsSync(path.join(process.resourcesPath, 'app-update.yml')); } catch {}
+      fs.writeFileSync(SMOKE, JSON.stringify({ ok: true, info, updater, updateYml, webviewPreloadExists: webview, electron: process.versions.electron }, null, 2));
       app.quit();
     });
     return;

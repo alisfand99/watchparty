@@ -13,5 +13,6 @@ contextBridge.exposeInMainWorld('wpEnv', {
   onUpdate: (cb) => ipcRenderer.on('wp-update', (_e, u) => cb(u)),
   setFullscreen: (on) => ipcRenderer.send('wp-fullscreen', !!on),
   onFullscreen: (cb) => ipcRenderer.on('wp-fs', (_e, on) => cb(!!on)),
+  checkUpdate: () => ipcRenderer.send('wp-update-check'),
   installUpdate: () => ipcRenderer.send('wp-update-install'),
 });

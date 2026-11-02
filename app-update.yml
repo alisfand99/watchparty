@@ -1,0 +1,5 @@
+provider: github
+owner: alisfand99
+repo: watchparty
+releaseType: release
+updaterCacheDirName: watchparty-updater
