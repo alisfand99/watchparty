@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WatchParty</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Join screen -->
+  <section id="join" class="join">
+    <div class="card">
+      <h1>WatchParty</h1>
+      <label>Name
+        <input id="name" maxlength="30">
+      </label>
+      <label>Room code
+        <input id="room" maxlength="40">
+      </label>
+      <button id="joinBtn" class="primary">Enter room</button>
+      <p id="joinErr" class="err"></p>
+      <div id="recentBox" class="recent hidden">
+        <h3>Recent rooms</h3>
+        <ul id="recent"></ul>
+      </div>
+      <div class="links"><button id="settingsBtn" class="link">Settings</button><button id="helpBtn" class="link">Help</button></div>
+      <p id="verLabel" class="ver"></p>
+    </div>
+  </section>
+
+  <!-- Room screen -->
+  <main id="app" class="app hidden">
+    <section class="stage">
+      <div id="screen" class="screen" data-mode="player">
+        <video id="video" playsinline></video>
+
+        <div id="browserPane" class="bpane hidden">
+          <div class="bbar">
+            <button id="bBack" title="Back" data-icon="back"></button>
+            <button id="bFwd" title="Forward" data-icon="fwd"></button>
+            <button id="bReload" title="Reload" data-icon="reload"></button>
+            <input id="bUrl" placeholder="Search or enter address" spellcheck="false">
+            <button id="bGo">Go</button>
+            <button id="bClose">Back to movie</button>
+          </div>
+          <div id="bHost" class="bhost"></div>
+        </div>
+
+        <div id="empty" class="empty"><p>No movie selected</p></div>
+        <canvas id="draw"></canvas>
+        <div id="tileLayer" class="tile-layer"></div>
+        <div id="toasts" class="toasts"></div>
+
+        <div id="drawbar" class="drawbar hidden">
+          <button data-tool="none" class="active" title="Stop drawing">Off</button>
+          <button data-tool="laser" title="Laser pointer">Laser</button>
+          <button data-tool="pen" title="Pen">Pen</button>
+          <button data-tool="eraser" title="Eraser">Eraser</button>
+          <button data-tool="emoji" title="Stamp an emoji">Emoji</button>
+          <div id="emojiRow" class="emoji-row hidden"></div>
+          <div id="swatches" class="swatches"></div>
+          <div class="sizes">
+            <button data-size="0.003" title="Thin">S</button>
+            <button data-size="0.006" class="active" title="Medium">M</button>
+            <button data-size="0.012" title="Thick">L</button>
+          </div>
+          <button id="fadeBtn" title="Strokes fade away after a few seconds">Fade</button>
+          <button id="undoBtn" title="Remove your last drawing">Undo</button>
+          <button id="clearBtn" title="Clear all drawings for everyone">Clear</button>
+        </div>
+
+        <div id="layoutMenu" class="popover hidden">
+          <button data-preset="right">Right column</button>
+          <button data-preset="left">Left column</button>
+          <button data-preset="top">Top row</button>
+          <button data-preset="bottom">Bottom row</button>
+          <button data-preset="corners">Corners</button>
+          <button data-preset="grid">Gallery</button>
+          <button id="hideCams">Hide cameras</button>
+        </div>
+
+        <div id="controls" class="controls">
+          <input id="seek" class="seek pc" type="range" min="0" max="1000" value="0" step="1">
+          <div class="crow">
+            <button id="playBtn" class="pc" data-icon="play" title="Play / Pause (Space)"></button>
+            <button id="backBtn" class="pc txt" title="Back 10 seconds (J)">-10</button>
+            <button id="fwdBtn" class="pc txt" title="Forward 10 seconds (L)">+10</button>
+            <span id="timeLbl" class="time pc">0:00 / 0:00</span>
+            <span class="grow"></span>
+            <button id="muteBtn" class="pc" data-icon="volume" title="Mute (M)"></button>
+            <input id="vol" class="vol pc" type="range" min="0" max="1" step="0.05" value="1">
+            <button id="speedBtn" class="pc txt" title="Playback speed (&lt; &gt;)">1x</button>
+            <button id="subBtn" class="pc" data-icon="cc" title="Subtitles"></button>
+            <span class="sep"></span>
+            <button id="micBtn" data-icon="mic" title="Microphone"></button>
+            <button id="camBtn" data-icon="cam" title="Camera"></button>
+            <button id="layoutBtn" data-icon="layout" title="Camera layout"></button>
+            <button id="drawBtn" data-icon="pen" title="Draw (D)"></button>
+            <button id="fsBtn" data-icon="fullscreen" title="Fullscreen (F)"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <label class="btn">
+          Choose file
+          <input id="file" type="file" accept="video/*,.mkv" hidden>
+        </label>
+        <div class="url-row">
+          <input id="url" placeholder="Video link (https://...)">
+          <button id="urlBtn">Play link</button>
+        </div>
+        <label class="btn">
+          Subtitles
+          <input id="subFile" type="file" accept=".srt,.vtt" hidden>
+        </label>
+        <button id="resync">Resync</button>
+        <span id="status" class="status"></span>
+        <span class="grow"></span>
+        <button id="settingsBtn2" class="link">Settings</button>
+        <button id="helpBtn2" class="link">Help</button>
+        <button id="leaveBtn" class="link">Leave</button>
+      </div>
+
+      <nav class="dock">
+        <button id="dockMovie" class="dockbtn active" title="Movie"><span class="di" data-icon="film"></span><span>Movie</span></button>
+        <button id="dockYT" class="dockbtn" title="YouTube"><img id="ytImg" alt="" width="28" height="28"><span id="ytTxt">YouTube</span></button>
+        <button id="dockWeb" class="dockbtn" title="Shared browser"><span class="di" data-icon="globe"></span><span>Browser</span></button>
+      </nav>
+    </section>
+
+    <aside class="side">
+      <div class="room-info">
+        <span>Room</span> <strong id="roomLabel"></strong>
+        <button id="copyLink">Copy</button>
+      </div>
+      <div id="updateBar" class="updatebar hidden"><span id="updateTxt"></span><button id="updateBtn" class="primary">Restart</button></div>
+      <div class="chat">
+        <div id="log" class="log"></div>
+        <form id="chatForm">
+          <input id="chatInput" placeholder="Message" autocomplete="off">
+          <button>Send</button>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Settings dialog -->
+  <div id="settings" class="modal hidden">
+    <div class="modal-card">
+      <h2>Settings</h2>
+      <div class="preview"><video id="prevVideo" autoplay muted playsinline></video></div>
+      <label class="field">Camera <select id="camSel"></select></label>
+      <label class="field">Microphone <select id="micSel"></select></label>
+      <div class="meter"><div id="meterFill"></div></div>
+      <label class="field">Speaker <select id="spkSel"></select></label>
+      <button id="settingsClose" class="primary">Done</button>
+    </div>
+  </div>
+
+  <!-- Help dialog -->
+  <div id="help" class="modal hidden">
+    <div class="modal-card">
+      <h2>Help</h2>
+      <h3>Start or join a room</h3>
+      <p>Everyone enters their name and the same room code, then clicks Enter room. Use a long, hard to guess room code, because anyone who knows it can join. Rooms you entered are remembered under Recent rooms. Click Rejoin to continue where you stopped.</p>
+      <h3>Watching together</h3>
+      <p>Everyone chooses the same movie file on their own computer. Play, pause, seeking and speed stay in sync. A video link can be used instead of a file. Use Resync if someone drifts. If you open the same file again, the app finds it by its last location.</p>
+      <h3>Player controls</h3>
+      <p>Space or K: play and pause. J and L: back and forward 10 seconds. Left and right arrows: 5 seconds. Up and down arrows: volume. M: mute. F: fullscreen. Shift+, and Shift+.: speed. Subtitles (.srt or .vtt) are loaded on your own computer only. Click the video to play or pause, double click for fullscreen.</p>
+      <h3>Drawing</h3>
+      <p>Press the pen button (or D) to open the drawing tools. Laser shows a pointer that everyone sees. Pen, eraser and emoji stamps are shared with everyone, positioned on the picture so they line up on every screen. Fade makes strokes disappear after a few seconds. Undo removes your last drawing, Clear removes all of them for everyone. Drawings are saved with the room.</p>
+      <h3>Camera tiles</h3>
+      <p>Drag a camera to move it, drag its corner to resize it, click it to enlarge it, click again to return. The layout button offers ready made arrangements and can hide the cameras. Your arrangement stays the same in fullscreen and is remembered for the room. It affects only your own screen.</p>
+      <h3>Shared browser</h3>
+      <p>The YouTube and Browser buttons at the bottom open a browser that everyone in the room sees. Page changes, scrolling, clicks, typing in text boxes and video play, pause and seeking are shared. Everybody can operate it. Do not sign in to accounts or type secrets there. Ads or pages that behave differently per person can drift apart, use Resync. Press Movie to go back to the film.</p>
+      <h3>Rejoining and history</h3>
+      <p>Room codes, the movie, your position, drawings, chat and activity are saved on this computer. When you come back, the others share what happened while you were away (for example that the movie moved forward or that drawings were added).</p>
+      <h3>Updates</h3>
+      <p>The installed app checks for new versions on its own. When one is downloaded you will see a Restart button. It also installs when you close the app.</p>
+      <h3>How it connects</h3>
+      <p>Video, audio, chat and sync go directly between the computers in the room. A public service is only used to introduce the computers to each other, and what it carries is encrypted with the room code.</p>
+      <h3>Camera and microphone</h3>
+      <p>Allow access when asked. Use Settings to pick the camera, microphone and speaker. Up to about 6 people work well.</p>
+      <h3>If someone cannot connect</h3>
+      <p>Some strict networks (some mobile data, offices, some ISPs) block direct connections. That person will see the message "Could not connect". Trying another network usually fixes it.</p>
+      <h3>Formats</h3>
+      <p>mp4 and webm work best. Other formats may not play.</p>
+      <button id="helpClose" class="primary">Close</button>
+    </div>
+  </div>
+
+  <script src="js/core.js"></script>
+  <script src="js/net.js"></script>
+  <script src="js/devices.js"></script>
+  <script src="js/tiles.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/browser.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
