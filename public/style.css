@@ -56,7 +56,7 @@ button.off { background: #3a1f24; border-color: var(--danger); }
 
 /* The screen never depends on the size of the loaded video, so nothing jumps around. */
 .screen { position: relative; flex: 1; min-height: 0; background: #000; border-radius: 14px; overflow: hidden; user-select: none; }
-.screen:fullscreen { border-radius: 0; }
+.screen.fs { position: fixed; inset: 0; z-index: 1000; border-radius: 0; }
 #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; direction: ltr; }
 .screen[data-mode="browser"] #video { visibility: hidden; }
 .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; z-index: 2; }
@@ -65,7 +65,7 @@ button.off { background: #3a1f24; border-color: var(--danger); }
 .tile-layer { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .toasts { position: absolute; left: 12px; bottom: 96px; z-index: 5; display: flex; flex-direction: column; gap: 4px; pointer-events: none; max-width: 40%; }
 .toast { background: rgba(0,0,0,.65); border-radius: 8px; padding: 4px 10px; font-size: 13px; }
-.screen:not(:fullscreen) .toasts { display: none; }
+.screen:not(.fs) .toasts { display: none; }
 
 .tile { position: absolute; background: #000; border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; border: 1px solid rgba(255,255,255,.18); pointer-events: auto; cursor: grab; touch-action: none; box-shadow: 0 4px 16px rgba(0,0,0,.5); transition: left .15s, top .15s, width .15s; }
 .tile.dragging { cursor: grabbing; transition: none; z-index: 30; }
@@ -163,7 +163,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px;
 
 button.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding: 6px 8px; }
 button.link:hover { color: var(--text); }
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; padding: 20px; z-index: 10; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: grid; place-items: center; padding: 20px; z-index: 2000; }
 .modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 24px 28px; width: min(560px, 100%); max-height: 85vh; overflow: auto; }
 .modal-card h2 { margin: 0 0 8px; }
 .modal-card h3 { margin: 16px 0 4px; font-size: 14px; color: var(--accent); }
@@ -177,3 +177,71 @@ select { font: inherit; color: var(--text); background: var(--bg); border: 1px s
 .preview video { width: 100%; height: 100%; object-fit: cover; }
 .meter { height: 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; margin-top: 10px; overflow: hidden; }
 .meter div { height: 100%; width: 0; background: var(--accent); transition: width .05s linear; }
+
+/* hiding a camera leaves a small name tag to bring it back */
+.tile.off { display: none; }
+.tile .hidebtn { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: none; background: rgba(0,0,0,.65); color: #fff; font-size: 16px; line-height: 20px; opacity: 0; cursor: pointer; }
+.tile:hover .hidebtn { opacity: 1; }
+.chips { position: absolute; left: 10px; bottom: 96px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; max-width: 60%; z-index: 6; }
+.chip { pointer-events: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 999px; background: rgba(15,17,21,.85); border: 1px solid rgba(255,255,255,.25); color: #fff; font-size: 12px; cursor: pointer; }
+.chip span { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.chip em { font-style: normal; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip:hover { background: rgba(60,70,110,.95); }
+
+/* snap, countdown, recorder */
+.controls button.badge::after { content: ''; position: absolute; width: 9px; height: 9px; border-radius: 50%; background: #ff5d5d; margin: -18px -16px 0 0; }
+.controls button { position: relative; }
+#recBtn.on { background: rgba(255,60,60,.5); animation: recpulse 1s infinite; }
+@keyframes recpulse { 50% { opacity: .55; } }
+.rectime { color: #ff8b8b; font-variant-numeric: tabular-nums; font-size: 13px; margin-inline: 4px; }
+.snapflash { position: absolute; inset: 0; background: #fff; z-index: 40; pointer-events: none; animation: flashout .45s forwards; }
+@keyframes flashout { from { opacity: .95; } to { opacity: 0; } }
+.countdown { position: absolute; inset: 0; z-index: 39; display: grid; place-content: center; text-align: center; background: rgba(0,0,0,.35); pointer-events: none; }
+.countdown b { font-size: min(34vh, 220px); line-height: 1; text-shadow: 0 6px 30px rgba(0,0,0,.7); }
+.countdown small { font-size: 20px; }
+.snaptoast { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 41; background: rgba(15,17,21,.92); border: 1px solid var(--accent); border-radius: 999px; padding: 8px 18px; font-size: 14px; pointer-events: none; }
+
+/* gallery */
+.modal-card.wide { width: min(1000px, 100%); position: relative; }
+.gal-head { display: flex; align-items: center; gap: 12px; }
+.gal-head h2 { margin: 0; }
+.muted { color: var(--muted); font-size: 13px; }
+.gal-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.gal-filters button { padding: 4px 12px; font-size: 13px; }
+.gal-filters button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.gitem { position: relative; background: #000; border-radius: 10px; overflow: hidden; cursor: pointer; border: 1px solid var(--line); aspect-ratio: 16/10; }
+.gitem:hover { border-color: var(--accent); }
+.gitem img, .gitem video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gmeta { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 8px 5px; font-size: 12px; background: linear-gradient(transparent, rgba(0,0,0,.8)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gplay, .gsign { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.7); border-radius: 6px; padding: 1px 7px; font-size: 12px; }
+.gsign { left: auto; right: 6px; }
+.gcrown { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 20px; }
+.gal-view { position: absolute; inset: 0; background: var(--panel); border-radius: 16px; padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; overflow: auto; }
+.gal-media { flex: 1; min-height: 0; display: grid; place-items: center; background: #000; border-radius: 10px; overflow: hidden; }
+.gal-media img, .gal-media video { max-width: 100%; max-height: 62vh; object-fit: contain; }
+.gal-reacts, .gal-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.gal-reacts button { padding: 4px 10px; }
+.gal-reacts button.active { background: var(--accent); border-color: var(--accent); }
+
+/* editor */
+.modal-card.ed { width: min(1100px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; max-height: 92vh; }
+.ed-stage { display: grid; place-items: center; background: #000; border-radius: 10px; overflow: auto; min-height: 300px; }
+.ed-stage canvas { max-width: 100%; max-height: 80vh; touch-action: none; cursor: crosshair; }
+.ed-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ed-side h2 { margin: 0; font-size: 18px; }
+.ed-side textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; resize: none; }
+.ed-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ed-row select { flex: 1 1 100%; }
+.ed-row button.active { background: var(--accent); border-color: var(--accent); }
+.ed-row input[type=color] { width: 44px; padding: 2px; height: 38px; }
+.ed-emoji { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.ed-emoji button { padding: 3px; font-size: 18px; background: transparent; border-color: transparent; }
+.ed-sel { display: grid; gap: 6px; }
+.ed-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: auto; }
+.ed-actions .primary { margin-top: 0; }
+@media (max-width: 900px) { .modal-card.ed { grid-template-columns: 1fr; } }
+.modal-card.ed { overflow: hidden; }
+.ed-side { overflow: auto; max-height: calc(92vh - 50px); padding-right: 4px; }
+.ed-actions { position: sticky; bottom: 0; background: var(--panel); padding-top: 6px; }
+.ed-stage canvas { max-height: 74vh; }

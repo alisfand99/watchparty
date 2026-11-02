@@ -79,6 +79,13 @@
           <button id="hideCams">Hide cameras</button>
         </div>
 
+        <div id="snapMenu" class="popover hidden">
+          <button data-snap="now">Snap now</button>
+          <button data-snap="react">Reaction snap (3, 2, 1 for everyone)</button>
+          <button data-snap="movie">Movie only (no faces)</button>
+          <button data-snap="faces">Faces only</button>
+        </div>
+
         <div id="controls" class="controls">
           <input id="seek" class="seek pc" type="range" min="0" max="1000" value="0" step="1">
           <div class="crow">
@@ -96,6 +103,10 @@
             <button id="camBtn" data-icon="cam" title="Camera"></button>
             <button id="layoutBtn" data-icon="layout" title="Camera layout"></button>
             <button id="drawBtn" data-icon="pen" title="Draw (D)"></button>
+            <button id="snapBtn" data-icon="camera" title="Snap a picture"></button>
+            <button id="recBtn" data-icon="rec" title="Record a clip (up to 60 seconds)"></button>
+            <span id="recTime" class="rectime hidden">0:00</span>
+            <button id="galBtn" data-icon="gallery" title="Room gallery"></button>
             <button id="fsBtn" data-icon="fullscreen" title="Fullscreen (F)"></button>
           </div>
         </div>
@@ -145,6 +156,77 @@
     </aside>
   </main>
 
+
+  <!-- Room gallery -->
+  <div id="gallery" class="modal hidden">
+    <div class="modal-card wide">
+      <div class="gal-head">
+        <h2>Room gallery</h2>
+        <span id="galCount" class="muted"></span>
+        <span class="grow"></span>
+        <button id="galClose">Close</button>
+      </div>
+      <div id="galFilters" class="gal-filters">
+        <button data-f="all" class="active">All</button>
+        <button data-f="snaps">Snaps</button>
+        <button data-f="clips">Clips</button>
+        <button data-f="memes">Memes</button>
+        <button data-f="cards">Cards</button>
+        <button data-f="mine">Mine</button>
+      </div>
+      <p id="galEmpty" class="muted">Nothing here yet. Use the camera button on the player to snap a reaction.</p>
+      <div id="galGrid" class="gal-grid"></div>
+      <div id="galView" class="gal-view hidden">
+        <div id="galMedia" class="gal-media"></div>
+        <p id="galInfo" class="muted"></p>
+        <div id="galReacts" class="gal-reacts"></div>
+        <div class="gal-actions">
+          <button id="galEdit">Edit / Meme / Card</button>
+          <button id="galShare">Share with room</button>
+          <button id="galDownload">Download</button>
+          <button id="galDelete">Delete</button>
+          <button id="galClose2">Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meme and card editor -->
+  <div id="editor" class="modal hidden">
+    <div class="modal-card ed">
+      <div class="ed-stage"><canvas id="edCanvas"></canvas></div>
+      <div class="ed-side">
+        <h2>Meme and card maker</h2>
+        <label class="field">Top text <textarea id="edTop" rows="2" placeholder="Top text"></textarea></label>
+        <label class="field">Bottom text <textarea id="edBottom" rows="2" placeholder="Bottom text"></textarea></label>
+        <div class="ed-row">
+          <select id="edCap"><option value="classic">Classic caption</option><option value="bar">White bar caption</option></select>
+          <select id="edFilter"><option value="none">No filter</option><option value="bw">Black and white</option><option value="sepia">Old film</option><option value="vhs">VHS</option><option value="fry">Deep fry</option><option value="vignette">Vignette</option></select>
+          <select id="edFrame"><option value="none">No frame</option><option value="polaroid">Polaroid</option><option value="ticket">Movie ticket</option><option value="film">Film strip</option></select>
+        </div>
+        <div class="ed-row">
+          <button id="edAddText">Add text</button>
+          <button id="edSign">Sign it</button>
+          <button id="edPen">Pen</button>
+          <input id="edColor" type="color" value="#ffe066" title="Color">
+          <button id="edUndo">Undo</button>
+        </div>
+        <div id="edEmoji" class="ed-emoji"></div>
+        <div id="edSelBox" class="ed-sel hidden">
+          <input id="edText" placeholder="Text">
+          <input id="edSize" type="range" min="20" max="300" value="80">
+          <button id="edDel">Remove</button>
+        </div>
+        <div class="ed-actions">
+          <button id="edSave" class="primary">Save to gallery</button>
+          <button id="edShare">Save and share</button>
+          <button id="edDownload">Download</button>
+          <button id="edCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Settings dialog -->
   <div id="settings" class="modal hidden">
     <div class="modal-card">
@@ -174,6 +256,10 @@
       <p>Drag a camera to move it, drag its corner to resize it, click it to enlarge it, click again to return. The layout button offers ready made arrangements and can hide the cameras. Your arrangement stays the same in fullscreen and is remembered for the room. It affects only your own screen.</p>
       <h3>Shared browser</h3>
       <p>The YouTube and Browser buttons at the bottom open a browser that everyone in the room sees. Page changes, scrolling, clicks, typing in text boxes and video play, pause and seeking are shared. Everybody can operate it. Do not sign in to accounts or type secrets there. Ads or pages that behave differently per person can drift apart, use Resync. Press Movie to go back to the film.</p>
+      <h3>Snaps, clips, memes and cards</h3>
+      <p>The camera button takes a picture of the whole screen: the movie or shared browser, every camera and the drawings. Reaction snap shows 3, 2, 1 on every screen so everyone makes a face at the same moment, and the picture goes to everyone. The red button records a clip of up to 60 seconds with the movie sound and everyone's voices. Everything lands in the room gallery (the picture button), which is saved on this computer for each room. Open a picture and press Edit to add captions, text, emoji and a pen, apply a filter, and put it on a Polaroid, movie ticket or film strip card. Press Sign it to sign with your name. Share sends it to everyone in the room, who can sign it too and share it again. Add emoji votes under a picture; the one with the most gets a crown.</p>
+      <h3>Cameras</h3>
+      <p>Hover a camera and press the minus button to hide it. A small name tag stays on the screen, click it to bring the camera back. The person is still heard. Fullscreen keeps the cameras on top of the movie and of YouTube.</p>
       <h3>Rejoining and history</h3>
       <p>Room codes, the movie, your position, drawings, chat and activity are saved on this computer. When you come back, the others share what happened while you were away (for example that the movie moved forward or that drawings were added).</p>
       <h3>Updates</h3>
@@ -197,6 +283,9 @@
   <script src="js/player.js"></script>
   <script src="js/draw.js"></script>
   <script src="js/browser.js"></script>
+  <script src="js/capture.js"></script>
+  <script src="js/gallery.js"></script>
+  <script src="js/editor.js"></script>
   <script src="js/ui.js"></script>
 </body>
 </html>
