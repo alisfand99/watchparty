@@ -223,12 +223,18 @@
   // ---------- app version and updates ----------
   if (WP.env && WP.env.version) $('verLabel').textContent = 'Version ' + WP.env.version;
   if (WP.env && WP.env.onUpdate) {
+    const ver = () => (WP.env && WP.env.version ? 'Version ' + WP.env.version : '');
     WP.env.onUpdate((u) => {
       const bar = $('updateBar');
-      if (u.state === 'downloading') { bar.classList.remove('hidden'); $('updateTxt').textContent = `Downloading update ${u.version || ''} ${u.percent ? Math.round(u.percent) + '%' : ''}`; $('updateBtn').classList.add('hidden'); }
-      else if (u.state === 'ready') { bar.classList.remove('hidden'); $('updateTxt').textContent = `Update ${u.version || ''} is ready.`; $('updateBtn').classList.remove('hidden'); }
-      else if (u.state === 'none' || u.state === 'error') bar.classList.add('hidden');
+      let note = '';
+      if (u.state === 'downloading') { bar.classList.remove('hidden'); $('updateTxt').textContent = `Downloading update ${u.version || ''} ${u.percent ? Math.round(u.percent) + '%' : ''}`; $('updateBtn').classList.add('hidden'); note = ' · downloading update'; }
+      else if (u.state === 'ready') { bar.classList.remove('hidden'); $('updateTxt').textContent = `Update ${u.version || ''} is ready.`; $('updateBtn').classList.remove('hidden'); note = ' · update ' + (u.version || '') + ' ready, restart the app'; }
+      else if (u.state === 'error') { bar.classList.remove('hidden'); $('updateTxt').textContent = 'Update check failed: ' + (u.message || 'unknown error'); $('updateBtn').classList.add('hidden'); note = ' · update check failed'; setTimeout(() => { if (/check failed/.test($('updateTxt').textContent)) bar.classList.add('hidden'); }, 20000); }
+      else if (u.state === 'none') { bar.classList.add('hidden'); note = ' · up to date'; }
+      $('verLabel').textContent = ver() + note;
     });
+    if ($('updCheck')) $('updCheck').classList.remove('hidden');
+    if ($('updCheck')) $('updCheck').onclick = () => { $('verLabel').textContent = ver() + ' · checking...'; WP.env.checkUpdate(); };
     $('updateBtn').onclick = () => WP.env.installUpdate();
   }
 })();
