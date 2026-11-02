@@ -104,8 +104,10 @@
   }
 
   // ---------- mirrored actions from the page ----------
+  WP.on('fullscreen', (on) => { if (!on && wv && isEl) { try { wv.send('wp-cmd', { k: 'fs-exit' }); } catch {} } });
   function onPageMsg(m) {
     dbg.sent[m.k] = (dbg.sent[m.k] || 0) + 1;
+    if (m.k === 'fs') { WP.setFs(!!m.on); return; } // fullscreen is personal, never shared
     if (Date.now() < quiet && m.k !== 'vid') { dbg.dropped[m.k] = (dbg.dropped[m.k] || 0) + 1; return; }
     switch (m.k) {
       case 'scroll': view.scroll = { fx: m.fx, fy: m.fy }; WP.broadcast({ t: 'bs', fx: m.fx, fy: m.fy }); break;

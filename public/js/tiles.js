@@ -6,7 +6,12 @@
   const geo = new Map(); // id -> { x, y, w } as fractions of the screen
   const els = new Map(); // id -> element
   let order = [];
-  let layout = { preset: 'right', pos: {}, hidden: false };
+  let layout = { preset: 'right', pos: {}, hidden: false, off: {} };
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  layer.appendChild(chips);
+  const isOff = (id) => !!(layout.off && layout.off[key(id)]);
+  const vis = () => order.filter((id) => !isOff(id));
   let spotId = null, spotPrev = null;
 
   const key = (id) => (id === 'me' ? 'me' : 'n:' + (WP.peers.get(id) ? WP.peers.get(id).name : '').toLowerCase());
@@ -84,21 +89,49 @@
 
   function relayout() {
     layer.classList.toggle('hidden', !!layout.hidden);
+    const v = vis();
+    for (const id of order) { const el = els.get(id); if (el) el.classList.toggle('off', isOff(id)); }
     if (layout.preset === 'custom') {
-      for (const id of order) if (id !== spotId && !geo.has(id)) geo.set(id, newSlot(id));
+      for (const id of v) if (id !== spotId && !geo.has(id)) geo.set(id, newSlot(id));
     } else {
-      const slots = PRESETS[layout.preset](Math.max(1, order.length));
-      order.forEach((id, i) => { if (id === spotId) { spotPrev = slots[i]; } else geo.set(id, slots[i]); });
+      const slots = PRESETS[layout.preset](Math.max(1, v.length));
+      v.forEach((id, i) => { if (id === spotId) { spotPrev = slots[i]; } else geo.set(id, slots[i]); });
     }
     paintAll();
+    drawChips();
     save();
+  }
+  function drawChips() {
+    chips.textContent = '';
+    for (const id of order) {
+      if (!isOff(id)) continue;
+      const b = document.createElement('button');
+      const nm = id === 'me' ? 'You' : (WP.peers.get(id) ? WP.peers.get(id).name : '?');
+      b.className = 'chip';
+      b.title = 'Show ' + nm;
+      b.dataset.id = id;
+      const dot = document.createElement('span');
+      dot.textContent = (nm[0] || '?').toUpperCase();
+      const t = document.createElement('em');
+      t.textContent = nm;
+      b.append(dot, t);
+      b.onclick = (e) => { e.stopPropagation(); setOff(id, false); };
+      chips.appendChild(b);
+    }
+  }
+  function setOff(id, off) {
+    if (!layout.off) layout.off = {};
+    if (off) { layout.off[key(id)] = true; if (spotId === id) { const el = els.get(id); if (el) el.classList.remove('spot'); if (spotPrev) geo.set(id, spotPrev); spotId = null; spotPrev = null; } }
+    else { delete layout.off[key(id)]; if (layout.preset === 'custom' && !geo.has(id)) geo.set(id, newSlot(id)); }
+    relayout();
   }
   function newSlot(id) {
     const saved = layout.pos[key(id)];
     if (saved) return saved;
     // free place: next position of the right column
-    const slots = PRESETS.right(Math.max(order.length, 1));
-    return slots[Math.max(0, order.indexOf(id))] || slots[0];
+    const v = vis();
+    const slots = PRESETS.right(Math.max(v.length, 1));
+    return slots[Math.max(0, v.indexOf(id))] || slots[0];
   }
   function save() {
     if (!WP.rec) return;
@@ -156,7 +189,13 @@
     l.textContent = name;
     const grip = document.createElement('div');
     grip.className = 'grip';
-    el.append(v, l, grip);
+    const hb = document.createElement('button');
+    hb.className = 'hidebtn';
+    hb.title = 'Hide this camera (a small name tag stays to bring it back)';
+    hb.textContent = '\u2212';
+    hb.addEventListener('pointerdown', (e) => e.stopPropagation());
+    hb.addEventListener('click', (e) => { e.stopPropagation(); setOff(id, true); });
+    el.append(v, l, grip, hb);
     layer.appendChild(el);
     els.set(id, el);
     order.push(id);
@@ -219,11 +258,12 @@
   document.addEventListener('click', (e) => { if (!e.target.closest('#layoutMenu')) $('layoutMenu').classList.add('hidden'); });
 
   WP.on('view-change', () => { if (layout.preset !== 'custom') relayout(); });
+  WP.on('fullscreen', () => { requestAnimationFrame(() => { if (layout.preset !== 'custom') relayout(); else paintAll(); }); });
   new ResizeObserver(() => paintAll()).observe(layer);
 
   // ----- wiring to the network -----
   WP.addMyTile = () => {
-    if (WP.rec && WP.rec.layout) layout = Object.assign({ preset: 'right', pos: {}, hidden: false }, WP.rec.layout);
+    if (WP.rec && WP.rec.layout) layout = Object.assign({ preset: 'right', pos: {}, hidden: false, off: {} }, WP.rec.layout);
     markMenu();
     addTile('me', WP.me.name + ' (You)', WP.localStream, true);
   };
@@ -233,8 +273,9 @@
     const el = els.get(entry.id);
     if (el) el.querySelector('.label').textContent = entry.name;
     if (layout.preset === 'custom' && layout.pos[key(entry.id)]) { geo.set(entry.id, layout.pos[key(entry.id)]); paint(entry.id); }
+    relayout();
   });
   WP.on('peer-remove', (entry) => removeTile(entry.id));
   WP.on('local-stream', () => { const el = els.get('me'); if (el) el.querySelector('video').srcObject = WP.localStream; });
-  WP.tiles = { geo, spot, get layout() { return layout; } };
+  WP.tiles = { geo, spot, setOff, isOff, get layout() { return layout; } };
 })();

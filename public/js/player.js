@@ -259,9 +259,29 @@
   const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
   function setRate(r) { video.playbackRate = r; localEvent('rate'); }
   $('speedBtn').onclick = () => { const i = RATES.indexOf(video.playbackRate); setRate(RATES[(i + 1) % RATES.length]); };
-  const fs = () => { if (document.fullscreenElement) document.exitFullscreen(); else screen.requestFullscreen().catch(() => {}); };
+  // Fullscreen is our own: the screen fills the window (and the window fills the display), so the cameras,
+  // drawings and controls stay on top of the movie and of the shared browser.
+  WP.fsOn = false;
+  function setFs(on, fromSystem) {
+    on = !!on;
+    if (on === WP.fsOn) return;
+    WP.fsOn = on;
+    screen.classList.toggle('fs', on);
+    document.body.classList.toggle('fs', on);
+    $('fsBtn').classList.toggle('on', on);
+    if (!fromSystem) {
+      if (WP.env && WP.env.setFullscreen) WP.env.setFullscreen(on);
+      else if (on) { const r = document.documentElement.requestFullscreen; if (r) r.call(document.documentElement).catch(() => {}); }
+      else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    }
+    WP.emit('fullscreen', on);
+  }
+  const fs = () => setFs(!WP.fsOn);
+  WP.setFs = setFs;
   $('fsBtn').onclick = fs;
-  document.addEventListener('fullscreenchange', () => { $('fsBtn').classList.toggle('on', !!document.fullscreenElement); WP.emit('fullscreen'); });
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && WP.fsOn && !(WP.env && WP.env.setFullscreen)) setFs(false, true); });
+  if (WP.env && WP.env.onFullscreen) WP.env.onFullscreen((on) => setFs(on, true));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && WP.fsOn && !document.querySelector('.modal:not(.hidden)')) setFs(false); });
 
   // click on the picture plays or pauses, double click goes fullscreen
   let clickT = 0;

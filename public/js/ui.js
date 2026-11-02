@@ -18,6 +18,9 @@
     globe: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.95a15.6 15.6 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.9 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14a8.2 8.2 0 0 1 0-4h3.38a16.5 16.5 0 0 0 0 4H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.6 15.6 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66a14.7 14.7 0 0 1 0-4h4.68a14.7 14.7 0 0 1 0 4zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14a16.5 16.5 0 0 0 0-4h3.38a8.2 8.2 0 0 1 0 4h-3.38z',
     back: 'M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z',
     fwd: 'M8.6 16.6 10 18l6-6-6-6-1.4 1.4 4.6 4.6z',
+    camera: 'M9 2 7.17 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3.17L15 2H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-1.8a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z',
+    rec: 'M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14z',
+    gallery: 'M22 16V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2zm-11-4 2.03 2.71L16 11l4 5H8l3-4zM2 6v14a2 2 0 0 0 2 2h14v-2H4V6H2z',
     reload: 'M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z',
   };
   WP.icon = (n) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n] || ''}"/></svg>`;
@@ -32,7 +35,7 @@
     if (persist && WP.rec) { WP.rec.chat.push(persist); if (WP.rec.chat.length > 150) WP.rec.chat.splice(0, WP.rec.chat.length - 150); WP.save(); }
   }
   function toast(text) {
-    if (!document.fullscreenElement) return;
+    if (!WP.fsOn) return;
     const t = document.createElement('div');
     t.className = 'toast';
     t.textContent = text;
@@ -97,6 +100,10 @@
       if (emoji.length) parts.push(`added ${emoji.map((e) => e.info).join(' ')}`);
       const src = es.filter((e) => e.kind === 'source');
       if (src.length) parts.push(`changed the movie to ${src[src.length - 1].info}`);
+      const snaps = es.filter((e) => e.kind === 'snap').length;
+      if (snaps) parts.push(`took ${snaps} snap${snaps > 1 ? 's' : ''}`);
+      const shares = es.filter((e) => e.kind === 'share').length;
+      if (shares) parts.push(`shared ${shares} item${shares > 1 ? 's' : ''} to the gallery`);
       const nav = es.filter((e) => e.kind === 'nav').length;
       if (nav) parts.push(`opened ${nav} web page${nav > 1 ? 's' : ''}`);
       if (parts.length) lines.push(`${who} ${parts.join(', ')}.`);
