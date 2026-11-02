@@ -1,0 +1,126 @@
+// Electron main process: opens the app window, protects the shared browser, keeps the app up to date.
+const { app, BrowserWindow, session, Menu, ipcMain } = require('electron');
+const path = require('path');
+const { pathToFileURL } = require('url');
+const fs = require('fs');
+
+const argv = process.argv;
+const argVal = (n) => { const a = argv.find((x) => x.startsWith('--' + n + '=')); return a ? a.slice(n.length + 3) : null; };
+const SELFTEST = argv.includes('--selftest');
+const SMOKE = argVal('smoke');
+if (SELFTEST) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+}
+
+const WEBVIEW_PRELOAD = path.join(__dirname, 'webview-preload.js');
+let mainWindow = null;
+
+ipcMain.on('wp-info', (e) => {
+  e.returnValue = { version: app.getVersion(), packaged: app.isPackaged, webviewPreload: pathToFileURL(WEBVIEW_PRELOAD).href };
+});
+
+function createWindow(opts = {}) {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    backgroundColor: '#0f1115',
+    title: 'WatchParty',
+    show: !SMOKE,
+    ...(opts.bounds || {}),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: true,
+      preload: path.join(__dirname, 'preload.js'),
+      autoplayPolicy: 'no-user-restriction',
+      backgroundThrottling: !SELFTEST,
+      ...(opts.partition ? { partition: opts.partition } : {}),
+    },
+  });
+  win.loadFile(path.join(__dirname, 'public', 'index.html'), opts.query ? { query: opts.query } : undefined);
+  return win;
+}
+
+// The shared browser may only show web pages, always with our own preload and no node access.
+app.on('web-contents-created', (_e, contents) => {
+  contents.on('will-attach-webview', (event, webPreferences, params) => {
+    if (!/^https?:\/\//i.test(params.src || '')) { event.preventDefault(); return; }
+    webPreferences.preload = WEBVIEW_PRELOAD;
+    webPreferences.nodeIntegration = false;
+    webPreferences.nodeIntegrationInSubFrames = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.webviewTag = false;
+    webPreferences.autoplayPolicy = 'no-user-restriction';
+    delete webPreferences.preloadURL;
+  });
+  // No window ever opens by itself. A page that wants a new window opens it in the shared browser instead.
+  contents.setWindowOpenHandler(({ url }) => {
+    const host = contents.hostWebContents;
+    if (SELFTEST) console.log('[wp] window open', url, !!host, contents.getType());
+    if (host && !host.isDestroyed() && /^https?:\/\//i.test(url)) host.send('wp-open-url', url);
+    return { action: 'deny' };
+  });
+});
+
+// ---------- updates ----------
+let autoUpdater = null;
+function setupUpdates() {
+  if (!app.isPackaged || SMOKE) return;
+  try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
+  const tell = (u) => BrowserWindow.getAllWindows().forEach((w) => { if (!w.isDestroyed()) w.webContents.send('wp-update', u); });
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-available', (i) => tell({ state: 'downloading', version: i.version }));
+  autoUpdater.on('download-progress', (p) => tell({ state: 'downloading', percent: p.percent }));
+  autoUpdater.on('update-downloaded', (i) => tell({ state: 'ready', version: i.version }));
+  autoUpdater.on('update-not-available', () => tell({ state: 'none' }));
+  autoUpdater.on('error', () => tell({ state: 'error' }));
+  ipcMain.on('wp-update-install', () => { try { autoUpdater.quitAndInstall(); } catch {} });
+  const check = () => { try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} };
+  setTimeout(check, 4000);
+  setInterval(check, 30 * 60 * 1000);
+}
+
+app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null);
+
+  // Camera, microphone and speaker choice for our own page only. The shared browser gets fullscreen and nothing else.
+  const allowed = new Set(['media', 'mediaKeySystem', 'speaker-selection']);
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(allowed.has(permission)));
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission));
+  const web = session.fromPartition('persist:wpbrowser');
+  const okWeb = new Set(['fullscreen', 'clipboard-sanitized-write']);
+  web.setPermissionRequestHandler((_wc, permission, cb) => cb(okWeb.has(permission)));
+  web.setPermissionCheckHandler((_wc, permission) => okWeb.has(permission));
+
+  if (SMOKE) { // proves the packaged app starts, then quits
+    const win = createWindow();
+    win.webContents.on('did-finish-load', async () => {
+      let info = {};
+      try {
+        info = await win.webContents.executeJavaScript(`({ env: !!window.wpEnv && window.wpEnv.electron, version: window.wpEnv && window.wpEnv.version, packaged: window.wpEnv && window.wpEnv.packaged, preload: !!(window.wpEnv && window.wpEnv.webviewPreload), joinVisible: !document.getElementById('join').classList.contains('hidden'), modules: typeof WP === 'object' && Object.keys(WP).length })`);
+      } catch (e) { info = { error: String(e) }; }
+      let updater = false;
+      try { require('electron-updater'); updater = true; } catch (e) { updater = String(e.message); }
+      let webview = false;
+      try { webview = fs.existsSync(WEBVIEW_PRELOAD); } catch {}
+      fs.writeFileSync(SMOKE, JSON.stringify({ ok: true, info, updater, webviewPreloadExists: webview, electron: process.versions.electron }, null, 2));
+      app.quit();
+    });
+    return;
+  }
+  if (SELFTEST) {
+    try { await require('./selftest.js').run({ app, createWindow, BrowserWindow, log: argVal('selftest-log') }); }
+    catch (e) { console.error(e); app.exit(1); }
+    return;
+  }
+
+  mainWindow = createWindow();
+  setupUpdates();
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow(); });
+});
+
+app.on('window-all-closed', () => app.quit());

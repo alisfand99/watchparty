@@ -1,0 +1,59 @@
+{
+  "name": "watchparty",
+  "version": "0.2.0",
+  "description": "Watch movies together in sync, with everyone's camera and microphone",
+  "main": "main.js",
+  "author": "WatchParty",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server.js",
+    "selftest": "electron . --selftest",
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:dir": "electron-builder --win --dir --publish never",
+    "dist:portable": "electron-builder --win portable --publish never",
+    "release": "electron-builder --win nsis --publish always"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.watchparty",
+    "productName": "WatchParty",
+    "files": [
+      "main.js",
+      "preload.js",
+      "webview-preload.js",
+      "public/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "WatchParty-Setup.exe",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "WatchParty-Portable.exe"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alisfand99/watchparty.git"
+  }
+}
