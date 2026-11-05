@@ -1,5 +1,12 @@
 # WatchParty
 
+Watch a movie together in sync, with everyone's camera and microphone. Two ways to use it:
+
+- **Website** (no install, works in Chrome or Edge): `https://alisfand99.github.io/watchparty/`. Movie, cameras, chat, drawing and moments. The shared browser and YouTube need the app.
+- **Windows app**: everything, plus the shared browser and YouTube, and automatic updates.
+
+The website is the `public/` folder, published by the "Pages" GitHub Action on every push. The app is the same code inside Electron.
+
 Desktop app (Windows) for watching a movie together in sync, with everyone's camera and microphone.
 Everything runs on the participants' own computers, there is no server to manage.
 

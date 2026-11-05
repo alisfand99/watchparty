@@ -1,6 +1,6 @@
 {
   "name": "watchparty",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Watch movies together in sync, with everyone's camera and microphone",
   "main": "main.js",
   "author": "WatchParty",
