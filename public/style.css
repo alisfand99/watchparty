@@ -310,3 +310,4 @@ select { font: inherit; color: var(--text); background: var(--bg); border: 1px s
 .popover input { width: 100%; }
 
 .screen[data-rail="left"] .drawbar { left: 72px; }
+.ver a, .modal-card a { color: var(--accent); }
