@@ -12,6 +12,8 @@
   };
 
   // ---------- tool registry ----------
+  // The shared browser and YouTube need the Windows app (websites refuse to be shown inside other pages).
+  const hasBrowser = !!(WP.env && WP.env.electron) || new URLSearchParams(location.search).has('relay');
   const TOOLS = [
     { id: 'lobby', title: 'Table', icon: 'table', hint: 'Back to the table', rail: true, open: () => WP.setMode('lobby') },
     { id: 'player', title: 'Movie', icon: 'film', hint: 'Watch a movie file or link together', rail: true, card: true, open: () => WP.setMode('player') },
@@ -20,6 +22,7 @@
     { id: 'books', title: 'Books', icon: 'book', hint: 'Read epub and pdf together', card: true, soon: true },
     { id: 'games', title: 'Games', icon: 'game', hint: 'Play something together', card: true, soon: true },
   ];
+  if (!hasBrowser) for (const t of TOOLS) if (t.id === 'yt' || t.id === 'web') { t.soon = true; t.hint = 'Windows app only'; t.note = 'Windows app only'; }
   WP.tools = TOOLS;
   WP.activeTool = () => {
     const m = WP.view.mode;
@@ -40,7 +43,7 @@
     b.className = 'card-tool' + (t.soon ? ' soon' : '');
     b.dataset.tool = t.id;
     b.title = t.hint;
-    b.innerHTML = `<span class="ci">${WP.icon(t.icon)}</span><b>${t.title}</b><small>${t.soon ? 'Coming soon' : t.hint}</small>`;
+    b.innerHTML = `<span class="ci">${WP.icon(t.icon)}</span><b>${t.title}</b><small>${t.note || (t.soon ? 'Coming soon' : t.hint)}</small>`;
     b.onclick = () => activate(t);
     cards.appendChild(b);
   }
@@ -54,7 +57,7 @@
   rail.innerHTML = '<button id="railToggle" class="rt" title="Show or hide the tool bar"></button><div id="railTools" class="rtools"></div><button id="railSide" class="rs" title="Move the tool bar to another side"></button>';
   screen.appendChild(rail);
   const railTools = $('railTools');
-  for (const t of TOOLS.filter((x) => x.rail)) {
+  for (const t of TOOLS.filter((x) => x.rail && !x.note)) {
     const b = document.createElement('button');
     b.dataset.tool = t.id;
     b.title = t.title + ': ' + t.hint;

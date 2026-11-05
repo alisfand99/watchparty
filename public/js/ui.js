@@ -279,6 +279,7 @@
   $('help').onclick = (e) => { if (e.target === $('help')) toggleHelp(false); };
 
   // ---------- app version and updates ----------
+  if (!(WP.env && WP.env.electron)) $('webNote').classList.remove('hidden');
   if (WP.env && WP.env.version) $('verLabel').textContent = 'Version ' + WP.env.version;
   if (WP.env && WP.env.onUpdate) {
     const ver = () => (WP.env && WP.env.version ? 'Version ' + WP.env.version : '');
